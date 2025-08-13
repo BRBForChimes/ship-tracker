@@ -1,4 +1,4 @@
-# shiptracker/ui/views.py
+
 import time
 import asyncio
 import discord
@@ -994,3 +994,4 @@ class ShipTypeSelect(discord.ui.Select):
         selected_type = self.values[0]
         modal = CreateShipModal(self.cog, self.ship_name, selected_type)
         await interaction.response.send_modal(modal)
+
