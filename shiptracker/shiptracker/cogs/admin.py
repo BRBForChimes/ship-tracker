@@ -1,4 +1,4 @@
-# shiptracker/cogs/admin.py
+
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -153,3 +153,4 @@ async def setup(bot: commands.Bot):
     # Avoid duplicate registration if the extension reloads
     if bot.tree.get_command("auth") is None:
         bot.tree.add_command(AdminAuth.auth_group)
+
