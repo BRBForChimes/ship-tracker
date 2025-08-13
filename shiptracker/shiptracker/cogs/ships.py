@@ -1,4 +1,4 @@
-# shiptracker/cogs/ships.py
+
 import re
 import discord
 from discord import app_commands
@@ -192,3 +192,4 @@ async def setup(bot: commands.Bot):
     # Avoid duplicate group registration if extension reloads
     if bot.tree.get_command("ship") is None:
         bot.tree.add_command(Ships.group)
+
