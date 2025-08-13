@@ -16,8 +16,7 @@ logger = logging.getLogger("shiptracker")
 # Intents (members intent needed for cross-guild auth role checks)
 intents = discord.Intents.default()
 intents.guilds = True
-intents.members = True  # required for cross-guild role checks
-
+intents.members = True 
 settings = Settings()
 if not settings.token:
     raise RuntimeError("DISCORD_TOKEN is missing in .env")
@@ -91,3 +90,4 @@ async def on_ready():
     logger.info(f"Logged in as {bot.user} (ID: {bot.user.id}) — War {settings.war_number}")
 
 bot.run(settings.token)
+
