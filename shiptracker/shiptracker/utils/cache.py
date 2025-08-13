@@ -1,4 +1,4 @@
-# shiptracker/utils/cache.py
+
 import time
 import threading
 from typing import Generic, TypeVar, Dict, Optional, Tuple
@@ -61,3 +61,4 @@ class TTLCache(Generic[K, V]):
         """Number of entries currently stored (may include expired items until accessed)."""
         with self._with_lock():
             return len(self._store)
+
