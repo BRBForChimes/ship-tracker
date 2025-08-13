@@ -98,9 +98,10 @@ def ship_main_embed(ship: Dict[str, Any]) -> discord.Embed:
         val = notes if len(notes) <= 1024 else (notes[:1024 - 1] + "…")
         embed.add_field(name="Notes", value=val, inline=False)
 
-    # Image
     img_url = _clean(ship.get("image_url") or ship.get("image"))
+    
     if img_url:
         embed.set_image(url=img_url)
-
     return embed
+
+

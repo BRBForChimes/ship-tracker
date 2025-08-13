@@ -63,9 +63,9 @@ class ShipService:
         ship_id = await self.db.add_ship(guild_id, war_id, **fields)
         return await self.db.get_ship_by_id(ship_id)
 
-    async def list_ships(self, guild_id: int) -> List[Dict[str, Any]]:
+    async def list_ships(self, guild_id: int):
         war_id = await self.current_war_id(guild_id)
-        return await self.db.list_ships(guild_id, war_id)
+        return await self.db.list_ships_for_guild(guild_id, war_id)
 
     async def update_field(self, guild_id: int, name: str, user_id: int, field: str, value):
         """Single-field update (propagates to linked copies)."""
@@ -213,50 +213,11 @@ class ShipService:
         origin_ship_id = await self.consume_share_code(code)
         if not origin_ship_id:
             raise ValueError("Invalid or already-used share code.")
-
         origin = await self.db.get_ship_by_id(origin_ship_id)
         if not origin:
             raise ValueError("Origin ship not found.")
-
-        # ensure origin has a stable root id
-        root_id = await self.db.ensure_self_rooted(origin_ship_id)
-
-        war_id = await self.current_war_id(target_guild_id)
-
-        fields = {
-            "type": origin.get("type"),
-            "name": origin.get("name"),
-            "status": origin.get("status"),
-            "damage": origin.get("damage"),
-            "location": origin.get("location"),
-            "home_port": origin.get("home_port"),
-            "notes": origin.get("notes"),
-            "keys": origin.get("keys"),
-            "image_url": origin.get("image_url"),
-            "regiment": origin.get("regiment"),
-            "squad_lock_until": origin.get("squad_lock_until"),
-            "link_root_id": root_id,
-        }
-
-        # handle name collisions in target guild/war
-        name = fields["name"] or "Unnamed"
-        existing = await self.db.get_ship(target_guild_id, war_id, name)
-        if existing:
-            suffix = 2
-            base = name
-            while await self.db.get_ship(target_guild_id, war_id, f"{base} ({suffix})"):
-                suffix += 1
-            fields["name"] = f"{base} ({suffix})"
-
-        new_id = await self.db.add_ship(target_guild_id, war_id, **fields)
-        return await self.db.get_ship_by_id(new_id)
-
-    async def add_ship_auth_user_text(self, ship_id: int, user_text: str, authed_by: int) -> bool:
-        """Accept a mention or raw ID and add as a per-ship authorized user."""
-        m = MENTION_RE.fullmatch(user_text.strip())
-        uid = int(m.group(1)) if m else int(user_text)
-        await self.db.add_ship_auth_user(ship_id, uid, authed_by)
-        return True
+        await self.current_war_id(target_guild_id)  # optional safety
+        return origin
 
     # ---------- Lock helpers for slash usage (now linked) ----------
 

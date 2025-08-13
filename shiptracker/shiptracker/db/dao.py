@@ -165,15 +165,53 @@ class Database:
             cols = [c[0] for c in cur.description]
             return dict(zip(cols, row))
 
-    async def list_ships(self, guild_id: int, war_id: int) -> List[Dict[str, Any]]:
+    async def list_ships_for_guild(self, guild_id: int, war_id: int):
+        """
+        Return ships that have at least one instance in this guild for this war.
+        """
         async with self.connect() as conn:
             cur = await conn.execute(
-                "SELECT * FROM ships WHERE guild_id=? AND war_id=? ORDER BY name",
-                (guild_id, war_id)
+                """
+                SELECT s.*
+                FROM ships s
+                JOIN ship_instances si ON si.ship_id = s.id
+                WHERE si.guild_id = ? AND s.war_id = ?
+                GROUP BY s.id
+                ORDER BY s.name COLLATE NOCASE
+                """,
+                (guild_id, war_id),
             )
+            rows = await cur.fetchall()
             cols = [c[0] for c in cur.description]
-            return [dict(zip(cols, r)) for r in await cur.fetchall()]
+            return [dict(zip(cols, r)) for r in rows]
 
+
+    async def search_ship_names_in_guild(self, guild_id: int, war_id: int, prefix: str, limit: int = 25, exclude_dead: bool = True):
+        """
+        Autocomplete names of ships that have instances in this guild for this war.
+        """
+        q = (prefix or "").strip()
+        params = [guild_id, war_id]
+        where = "WHERE si.guild_id = ? AND s.war_id = ?"
+        if q:
+            where += " AND s.name LIKE ?"
+            params.append(f"{q}%")
+        if exclude_dead:
+            where += " AND LOWER(COALESCE(s.status,'')) <> 'dead'"
+
+        sql = f"""
+            SELECT DISTINCT s.name
+            FROM ships s
+            JOIN ship_instances si ON si.ship_id = s.id
+            {where}
+            ORDER BY s.name COLLATE NOCASE
+            LIMIT {int(limit)}
+        """
+        async with self.connect() as conn:
+            cur = await conn.execute(sql, tuple(params))
+            return [r[0] for r in await cur.fetchall()]
+
+    
     async def update_ship_field(self, ship_id: int, user_id: int, field: str, new_value: Any):
         if field not in ALLOWED_FIELDS:
             raise ValueError("Invalid field")
@@ -181,7 +219,10 @@ class Database:
             cur = await conn.execute(f"SELECT {field} FROM ships WHERE id=?", (ship_id,))
             row = await cur.fetchone()
             old = row[0] if row else None
-            await conn.execute(f"UPDATE ships SET {field}=? WHERE id=?", (new_value, ship_id))
+            await conn.execute(
+                f"UPDATE ships SET {field}=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                (new_value, ship_id)
+            )
             await conn.execute(
                 "INSERT INTO ship_updates(ship_id,user_id,field,old_value,new_value) VALUES (?,?,?,?,?)",
                 (ship_id, user_id, field, old, str(new_value))
@@ -294,7 +335,6 @@ class Database:
                 (root_id, root_id),
             )
             return [int(r[0]) for r in await cur.fetchall()]
-
 
     async def ensure_self_rooted(self, ship_id: int) -> int:
         """If the ship has no link_root_id, set it to itself. Return the root id."""

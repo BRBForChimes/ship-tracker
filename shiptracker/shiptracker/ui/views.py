@@ -212,38 +212,19 @@ class ShipView(discord.ui.View):
 # Helpers to refresh all posted instances of a ship
 # -----------------------------------------------------------------------------
 async def _refresh_everywhere(client: discord.Client, ship_id: int):
-    """
-    Refresh embeds + buttons for the given ship and all its linked siblings
-    across all guilds/channels where they were posted.
-    """
-    # 1) get all linked ship ids (root + clones)
-    try:
-        linked_ids = await client.db.get_linked_ship_ids(ship_id)
-    except AttributeError:
-        # safety: if helper not present yet, fall back to just this one
-        linked_ids = [ship_id]
+    fresh = await client.db.get_ship_by_id(ship_id)
+    instances = await client.db.get_instances(ship_id)
+    if not instances:
+        return
 
-    if not linked_ids:
-        linked_ids = [ship_id]
+    async def build_embed():
+        return ship_main_embed(fresh)
 
-    # 2) refresh each sibling's instances
-    for sid in linked_ids:
-        fresh = await client.db.get_ship_by_id(sid)
-        if not fresh:
-            continue
+    def build_view():
+        return ShipView(fresh, mode="main")
 
-        instances = await client.db.get_instances(sid)
-        if not instances:
-            continue
-
-        async def build_embed():
-            # use the snapshot we just fetched for consistency
-            return ship_main_embed(fresh)
-
-        def build_view():
-            return ShipView(fresh, mode="main")
-
-        await update_all_instances(client, instances, build_embed, build_view)
+    await update_all_instances(client, instances, build_embed, build_view)
+    
 # -----------------------------------------------------------------------------
 # Component Router
 # -----------------------------------------------------------------------------
@@ -651,23 +632,20 @@ class ShipView(discord.ui.View):
 # -----------------------------------------------------------------------------
 # Helpers to refresh all posted instances of a ship
 # -----------------------------------------------------------------------------
+
 async def _refresh_everywhere(client: discord.Client, ship_id: int):
-    ship = await client.db.get_ship_by_id(ship_id)
-    embed = ship_main_embed(ship)
+    fresh = await client.db.get_ship_by_id(ship_id)
     instances = await client.db.get_instances(ship_id)
+    if not instances:
+        return
 
-    for inst in instances:
-        try:
-            ch = await client.fetch_channel(inst["channel_id"])
-            if not hasattr(ch, "fetch_message"):
-                continue
-            msg = await ch.fetch_message(inst["message_id"])
-            await msg.edit(embed=embed, view=ShipView(ship, mode="main"))
-        except Exception as e:
-            logger = getattr(client, "logger", None)
-            logger and logger.warning(f"Failed to update {inst}: {e}")
+    async def build_embed():
+        return ship_main_embed(fresh)
 
+    def build_view():
+        return ShipView(fresh, mode="main")
 
+    await update_all_instances(client, instances, build_embed, build_view)
 # -----------------------------------------------------------------------------
 # Component Router
 # -----------------------------------------------------------------------------

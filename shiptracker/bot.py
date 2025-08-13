@@ -74,6 +74,15 @@ class ShipTrackerBot(commands.Bot):
                 self.logger.info("Synced global commands.")
         except Exception as e:
             self.logger.warning(f"Slash command sync failed: {e}")
+            
+        async with db.connect() as conn:
+            cur = await conn.execute("SELECT DISTINCT ship_id FROM ship_instances")
+            rows = await cur.fetchall()
+
+        for (ship_id,) in rows:
+            ship = await db.get_ship_by_id(int(ship_id))
+            if ship:
+                self.add_view(ShipView(ship, mode="main"))
 
 bot = ShipTrackerBot()
 
